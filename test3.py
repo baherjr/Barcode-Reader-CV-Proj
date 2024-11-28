@@ -1,6 +1,3 @@
-import cv2
-import numpy as np
-
 # Define paths for uploaded images
 test_image_paths = [
     r"Test Cases-20241123/01 - lol easy.jpg",
@@ -15,7 +12,6 @@ test_image_paths = [
     r"Test Cases-20241123/10 - wen el kontraastttt.jpg",
     r"Test Cases-20241123/11 - bayza 5ales di bsara7a.jpg",
 ]
-
 
 
 def order_points(pts):
@@ -51,7 +47,6 @@ def adjust_brightness_contrast(image):
     gamma_corrected = np.uint8(gamma_corrected)
 
     return gamma_corrected
-
 
 
 def refine_preprocessing_for_barcode(img):
@@ -111,8 +106,10 @@ def detect_and_crop_barcode(image):
         cropped = cv2.rotate(cropped, cv2.ROTATE_90_CLOCKWISE)
     return cropped
 
+
 import cv2
 import numpy as np
+
 
 def is_low_contrast(image_path, threshold=50, black_threshold=20, min_intensity_threshold=30, noise_threshold=0.05):
     """
@@ -200,6 +197,5 @@ for i, test_image_path in enumerate(test_image_paths, 1):
     result = process_and_save(test_image_path, output_path)
     results.append(result)
 
-
 # Return results
-result_1, result_2, result_3, result_4, result_5, result_6, result_7, result_8, result_9, result_10, result_11
+results
