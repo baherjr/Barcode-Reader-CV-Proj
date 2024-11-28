@@ -2,17 +2,20 @@ import cv2
 import numpy as np
 
 # Define paths for uploaded images
-test_image_1_path = r"Test Cases-20241123/01 - lol easy.jpg"
-test_image_2_path = r"Test Cases-20241123/02 - still easy.jpg"
-test_image_3_path = r"Test Cases-20241123/03 - eda ya3am ew3a soba3ak mathazarsh.jpg"
-test_image_4_path = r"Test Cases-20241123/04 - fen el nadara.jpg"
-test_image_5_path = r"Test Cases-20241123/05 - meen taffa el nour!!!.jpg"
-test_image_6_path = r"Test Cases-20241123/06 - meen fata7 el nour 333eenaaayy.jpg"
-test_image_7_path = r"Test Cases-20241123/07 - mal7 w felfel.jpg"
-test_image_8_path = r"Test Cases-20241123/08 - compresso espresso.jpg"
-test_image_9_path = r"Test Cases-20241123/09 - e3del el soora ya3ammm.jpg"
-test_image_10_path = r"Test Cases-20241123/10 - wen el kontraastttt.jpg"
-test_image_11_path = r"Test Cases-20241123/11 - bayza 5ales di bsara7a.jpg"
+test_image_paths = [
+    r"Test Cases-20241123/01 - lol easy.jpg",
+    r"Test Cases-20241123/02 - still easy.jpg",
+    r"Test Cases-20241123/03 - eda ya3am ew3a soba3ak mathazarsh.jpg",
+    r"Test Cases-20241123/04 - fen el nadara.jpg",
+    r"Test Cases-20241123/05 - meen taffa el nour!!!.jpg",
+    r"Test Cases-20241123/06 - meen fata7 el nour 333eenaaayy.jpg",
+    r"Test Cases-20241123/07 - mal7 w felfel.jpg",
+    r"Test Cases-20241123/08 - compresso espresso.jpg",
+    r"Test Cases-20241123/09 - e3del el soora ya3ammm.jpg",
+    r"Test Cases-20241123/10 - wen el kontraastttt.jpg",
+    r"Test Cases-20241123/11 - bayza 5ales di bsara7a.jpg",
+]
+
 
 
 def order_points(pts):
@@ -191,17 +194,12 @@ def process_and_save(image_path, output_path):
 
 
 # Process each test case
-result_1 = process_and_save(test_image_1_path, "processed_barcodes/processed_barcode1.jpg")
-result_2 = process_and_save(test_image_2_path, "processed_barcodes/processed_barcode2.jpg")
-result_3 = process_and_save(test_image_3_path, "processed_barcodes/processed_barcode3.jpg")
-result_4 = process_and_save(test_image_4_path, "processed_barcodes/processed_barcode4.jpg")
-result_5 = process_and_save(test_image_5_path, "processed_barcodes/processed_barcode5.jpg")
-result_6 = process_and_save(test_image_6_path, "processed_barcodes/processed_barcode6.jpg")
-result_7 = process_and_save(test_image_7_path, "processed_barcodes/processed_barcode7.jpg")
-result_8 = process_and_save(test_image_8_path, "processed_barcodes/processed_barcode8.jpg")
-result_9 = process_and_save(test_image_9_path, "processed_barcodes/processed_barcode9.jpg")
-result_10 = process_and_save(test_image_10_path, "processed_barcodes/processed_barcode10.jpg")
-result_11 = process_and_save(test_image_11_path, "processed_barcodes/processed_barcode11.jpg")
+results = []
+for i, test_image_path in enumerate(test_image_paths, 1):
+    output_path = f"processed_barcodes/processed_barcode{i}.jpg"
+    result = process_and_save(test_image_path, output_path)
+    results.append(result)
+
 
 # Return results
 result_1, result_2, result_3, result_4, result_5, result_6, result_7, result_8, result_9, result_10, result_11
