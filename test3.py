@@ -108,16 +108,21 @@ def detect_and_crop_barcode(image):
         cropped = cv2.rotate(cropped, cv2.ROTATE_90_CLOCKWISE)
     return cropped
 
-def is_low_contrast(image_path, threshold=50, black_threshold=20, min_intensity_threshold=30):
+import cv2
+import numpy as np
+
+def is_low_contrast(image_path, threshold=50, black_threshold=20, min_intensity_threshold=30, noise_threshold=0.05):
     """
     Flags images with low contrast, ignoring very dark background areas close to absolute black.
     Skips cases where the image has minimal contrast (e.g., contrast = 0) due to a uniform dark region.
+    Also skips images with salt-and-pepper noise based on a noise threshold.
 
     Args:
         image_path (str): Path to the image.
         threshold (int): Minimum contrast value to flag low contrast images.
         black_threshold (int): Grayscale value considered "close to black" to ignore in contrast calculation.
         min_intensity_threshold (int): Minimum intensity value to ignore images with near-zero contrast.
+        noise_threshold (float): Proportion of pixels that must be black or white for the image to be flagged as having salt-and-pepper noise.
 
     Returns:
         bool: True if the image has low contrast, False otherwise.
@@ -128,6 +133,18 @@ def is_low_contrast(image_path, threshold=50, black_threshold=20, min_intensity_
     # Check if the image was loaded
     if image is None:
         raise FileNotFoundError(f"Image not found at {image_path}")
+
+    # Check for salt-and-pepper noise
+    num_black_pixels = np.sum(image == 0)
+    num_white_pixels = np.sum(image == 255)
+    total_pixels = image.size
+
+    # Calculate the proportion of black and white pixels
+    noise_proportion = (num_black_pixels + num_white_pixels) / total_pixels
+
+    if noise_proportion > noise_threshold:
+        print(f"Skipping image due to salt-and-pepper noise: Noise Proportion {noise_proportion:.2f}")
+        return False
 
     # Create a mask to exclude pixels close to black
     mask = image > black_threshold  # True for pixels that are not near black
@@ -142,9 +159,6 @@ def is_low_contrast(image_path, threshold=50, black_threshold=20, min_intensity_
     min_intensity = np.min(image_without_black)
     max_intensity = np.max(image_without_black)
     contrast = max_intensity - min_intensity
-
-    # Debugging info
-    print(f"Min Intensity (non-black): {min_intensity}, Max Intensity (non-black): {max_intensity}, Contrast: {contrast}")
 
     # Skip if the contrast is zero or minimal (e.g., the image is almost uniform in intensity)
     if contrast == 0 or min_intensity < min_intensity_threshold:
