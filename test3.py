@@ -1,3 +1,6 @@
+import cv2
+import numpy as np
+
 # Define paths for uploaded images
 test_image_paths = [
     r"Test Cases-20241123/01 - lol easy.jpg",
@@ -107,8 +110,7 @@ def detect_and_crop_barcode(image):
     return cropped
 
 
-import cv2
-import numpy as np
+
 
 
 def is_low_contrast(image_path, threshold=50, black_threshold=20, min_intensity_threshold=30, noise_threshold=0.05):
