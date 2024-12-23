@@ -7,7 +7,7 @@ from AnalyzeImageUtils import AnalyzeImage
 
 
 class ImageProcessor:
-    OUTPUT_PATH = 'processed_barcodes'
+    OUTPUT_PATH = 'processed'
 
     def __init__(self, image_paths):
         self.image_paths = image_paths
@@ -21,19 +21,11 @@ class ImageProcessor:
 
         # Detect various image issues
         blur_flag = AnalyzeImage.is_this_image_wearing_glasses(img)
-        contrast_flag = AnalyzeImage.detect_contrast(img)
+        contrast_flag = AnalyzeImage.check_contrast(img)
         salt_pepper_flag = AnalyzeImage.check_for_salt_and_pepper(img)
         high_brightness_flag = AnalyzeImage.check_if_its_sunbathing(img)
         low_brightness_flag = AnalyzeImage.is_this_a_midnight_snack(img)
         periodic_flag = AnalyzeImage.detect_periodic(img)
-
-        print(f"Image: {image_path}")
-        print(f"Blur: {blur_flag}")
-        print(f"Contrast: {contrast_flag}")
-        print(f"Salt & Pepper: {salt_pepper_flag}")
-        print(f"High Brightness: {high_brightness_flag}")
-        print(f"Low Brightness: {low_brightness_flag}")
-        print(f"Periodic: {periodic_flag}")
 
         # Preprocess image based on detected issues
         processed_img = img.copy()
@@ -41,40 +33,38 @@ class ImageProcessor:
         if periodic_flag:
             processed_img = ImageTransformer.periodic_noise_removal(processed_img, 0.1)
         if blur_flag:
-            processed_img = ImageTransformer.Sharpen(processed_img)
+            processed_img = ImageTransformer.apply_sharpening(processed_img)
         if high_brightness_flag:
             processed_img = PreprocessImage.gamma_correction(processed_img, 30)
         if low_brightness_flag:
-            processed_img = PreprocessImage.process_dark_barcode(processed_img)
+            processed_img = PreprocessImage.too_dark(processed_img)
         if salt_pepper_flag:
-            processed_img = PreprocessImage.sheel_mal7_wfelfel(processed_img)
+            processed_img = PreprocessImage.remove_seasoning(processed_img)
         if contrast_flag:
-            processed_img = PreprocessImage.la2ena_el_contrast(processed_img)
+            processed_img = PreprocessImage.enhance_contrast(processed_img)
 
         # Handle rotation correction
         is_rotated_flag = AnalyzeImage.is_rotated(processed_img, 90)
-        print(f"Rotated: {is_rotated_flag}")
         if is_rotated_flag:
-            processed_img = PreprocessImage.contour_rotated(processed_img)
+            processed_img = PreprocessImage.rotate_by_contour(processed_img)
 
         # Handle obstacle removal
-        obstacle_flag = AnalyzeImage.obstacle_detection(processed_img)
-        print(f"Obstacle: {obstacle_flag}")
+        obstacle_flag = AnalyzeImage.spot_the_obstacle_course(processed_img)
         if obstacle_flag:
-            processed_img = PreprocessImage.remove_Obstacle(processed_img)
+            processed_img = PreprocessImage.clear_the_pathway(processed_img)
 
         # Final processing steps
-        threshed = PreprocessImage.thresholding(processed_img)
-        contoured = PreprocessImage.contour(threshed)
-        cropped = PreprocessImage.crop_rows(contoured, 3)
+        threshed = PreprocessImage.apply_threshold(processed_img)
+        contoured = PreprocessImage.crop_to_contour(threshed)
+        cropped = PreprocessImage.remove_top_rows(contoured, 3)
 
         # Additional processing steps
         processed_img = cv2.morphologyEx(cropped, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (1, 2)))
-        height = PreprocessImage.calculate_vertical_bar_height(processed_img)
-        processed_img = PreprocessImage.apply_opening(processed_img, height)
-        processed_img = PreprocessImage.apply_closing(processed_img)
-        threshed = PreprocessImage.thresholding(processed_img)
-        final_img = PreprocessImage.contour(threshed)
+        height = PreprocessImage.get_barcode_height(processed_img)
+        processed_img = PreprocessImage.open_the_door(processed_img, height)
+        processed_img = PreprocessImage.close_the_door(processed_img)
+        threshed = PreprocessImage.apply_threshold(processed_img)
+        final_img = PreprocessImage.crop_to_contour(threshed)
 
         # Save the processed image
         save_path = self.OUTPUT_PATH
@@ -85,10 +75,37 @@ class ImageProcessor:
 
         # Decode the barcode
         barcode_decoder = BarcodeDecoder()
-        decoded_digits = barcode_decoder.decode_barcode(final_img)
-        print("Decoded digits:", decoded_digits)
+        decoded_digits = barcode_decoder.crack_the_code(final_img)
 
         # Append the decoded digits to a text file
         with open(rf"{self.OUTPUT_PATH}/decoded_digits.txt", "a") as file:
             file.write(f"{os.path.basename(image_path)[:3]}: {' '.join(decoded_digits)}\n")
 
+        # Collect flags
+        flags = []
+        if blur_flag:
+            flags.append('Blur')
+        if contrast_flag:
+            flags.append('Contrast')
+        if salt_pepper_flag:
+            flags.append('Salt & Pepper')
+        if high_brightness_flag:
+            flags.append('High Brightness')
+        if low_brightness_flag:
+            flags.append('Low Brightness')
+        if periodic_flag:
+            flags.append('Periodic')
+        if is_rotated_flag:
+            flags.append('Rotated')
+        if obstacle_flag:
+            flags.append('Obstacle')
+
+        # Print flags next to the image name
+        if flags:
+            print(f"{os.path.basename(image_path)}: {', '.join(flags)}")
+        else:
+            print(f"{os.path.basename(image_path)}: No flags")
+
+    def process_all_images(self):
+        for image_path in self.image_paths:
+            self.process_image(image_path)
