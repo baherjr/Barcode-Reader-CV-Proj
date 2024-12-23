@@ -7,7 +7,7 @@ from AnalyzeImageUtils import AnalyzeImage
 
 
 class ImageProcessor:
-    OUTPUT_PATH = 'processed'
+    OUTPUT_PATH = 'processed_barcodes'
 
     def __init__(self, image_paths):
         self.image_paths = image_paths
@@ -81,30 +81,40 @@ class ImageProcessor:
         with open(rf"{self.OUTPUT_PATH}/decoded_digits.txt", "a") as file:
             file.write(f"{os.path.basename(image_path)[:3]}: {' '.join(decoded_digits)}\n")
 
-        # Collect flags
-        flags = []
-        if blur_flag:
-            flags.append('Blur')
-        if contrast_flag:
-            flags.append('Contrast')
-        if salt_pepper_flag:
-            flags.append('Salt & Pepper')
-        if high_brightness_flag:
-            flags.append('High Brightness')
-        if low_brightness_flag:
-            flags.append('Low Brightness')
-        if periodic_flag:
-            flags.append('Periodic')
-        if is_rotated_flag:
-            flags.append('Rotated')
-        if obstacle_flag:
-            flags.append('Obstacle')
+            # Collect flags (as before)
+            flags = []
+            if blur_flag:
+                flags.append('Blur')
+            if contrast_flag:
+                flags.append('Contrast')
+            if salt_pepper_flag:
+                flags.append('Salt & Pepper')
+            if high_brightness_flag:
+                flags.append('High Brightness')
+            if low_brightness_flag:
+                flags.append('Low Brightness')
+            if periodic_flag:
+                flags.append('Periodic')
+            if is_rotated_flag:
+                flags.append('Rotated')
+            if obstacle_flag:
+                flags.append('Obstacle')
 
-        # Print flags next to the image name
-        if flags:
-            print(f"{os.path.basename(image_path)}: {', '.join(flags)}")
-        else:
-            print(f"{os.path.basename(image_path)}: No flags")
+            # Save triggered flags and decoded barcode digits to a file
+            save_path = self.OUTPUT_PATH
+            if not os.path.exists(save_path):
+                os.makedirs(save_path)
+            result_file_path = os.path.join(save_path, "flags_and_decoded.txt")
+            with open(result_file_path, "a") as result_file:
+                flags_text = ", ".join(flags) if flags else "No flags"
+                result_file.write(
+                    f"{os.path.basename(image_path)}: Flags: {flags_text}, Decoded: {', '.join(decoded_digits)}\n")
+
+            # Print flags next to the image name
+            if flags:
+                print(f"{os.path.basename(image_path)}: {', '.join(flags)}")
+            else:
+                print(f"{os.path.basename(image_path)}: No flags")
 
     def process_all_images(self):
         for image_path in self.image_paths:
