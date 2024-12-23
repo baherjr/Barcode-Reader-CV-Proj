@@ -31,7 +31,7 @@ class ImageTransformer:
         return threshed
 
     @staticmethod
-    def Sharpen(image):
+    def apply_sharpening(image):
 
         strength = 0.3
         laplacian_kernel = np.array([[0, -1, 0],
@@ -42,4 +42,3 @@ class ImageTransformer:
         sharpened_image = cv2.addWeighted(image, 1 + strength, laplacian_image, -strength, 0)
         _, threshed = cv2.threshold(sharpened_image, 150, 255, cv2.THRESH_BINARY)
         return threshed
-
