@@ -8,12 +8,12 @@ from scipy.signal import find_peaks
 class PreprocessImage:
 
     @staticmethod
-    def thresholding(image, value=127):
+    def apply_threshold(image, value=127):
         ret, thresh = cv2.threshold(image, value, 255, cv2.THRESH_BINARY)
         return thresh
 
     @staticmethod
-    def contour(image):
+    def crop_to_contour(image):
         inv = cv2.bitwise_not(image)
         x, y, w, h = cv2.boundingRect(inv)
 
@@ -22,9 +22,9 @@ class PreprocessImage:
         crop = image[y:y + h - h // 4, x:x + w]
         return crop
 
-    def calculate_vertical_bar_height(image):
+    def get_barcode_height(image):
         # Use the static method `PreprocessImage.contour` directly
-        contoured = PreprocessImage.contour(image)
+        contoured = PreprocessImage.crop_to_contour(image)
         if len(contoured.shape) == 2:
             height, _ = contoured.shape
         else:
@@ -37,15 +37,15 @@ class PreprocessImage:
         return cv2.morphologyEx(image, operation, kernel)
 
     @staticmethod
-    def apply_closing(image):
+    def close_the_door(image):
         return PreprocessImage.morphology_operation(image, cv2.MORPH_CLOSE, (3, 3))
 
     @staticmethod
-    def apply_opening(image, bar_height):
+    def open_the_door(image, bar_height):
         return PreprocessImage.morphology_operation(image, cv2.MORPH_OPEN, (1,bar_height))
 
     @staticmethod
-    def apply_gaussian(image, count=1):
+    def gaussian_blur(image, count=1):
         gaussian_kernel = np.array([[1, 2, 1],
                                     [2, 4, 2],
                                     [1, 2, 1]], dtype=np.float32)
@@ -58,7 +58,7 @@ class PreprocessImage:
         return filtered_image
 
     @staticmethod
-    def contour_rotated(img):
+    def rotate_by_contour(img):
         padded_image = cv2.copyMakeBorder(img, 100, 100, 200, 200, cv2.BORDER_CONSTANT, value=[255, 255, 255])
         ret, thresh = cv2.threshold(padded_image, 127, 255, 0)
 
@@ -89,16 +89,16 @@ class PreprocessImage:
         return corrected_image
 
     @staticmethod
-    def remove_Obstacle(gray):
+    def clear_the_pathway(gray):
         gray[(gray >= 20) & (gray <= 220)] = 255
         gray = cv2.morphologyEx(gray, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2)))
-        threshed = PreprocessImage.thresholding(gray)
-        contoured = PreprocessImage.contour(threshed)
+        threshed = PreprocessImage.apply_threshold(gray)
+        contoured = PreprocessImage.crop_to_contour(threshed)
         processed_img = cv2.morphologyEx(contoured, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (1, 200)))
         return processed_img
 
     @staticmethod
-    def sheel_mal7_wfelfel(image):
+    def remove_seasoning(image):
         blurred_image = cv2.blur(image, (1, 15))
         filtered_image = cv2.medianBlur(blurred_image, 5)
         _, filtered_thresh = cv2.threshold(filtered_image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
@@ -113,11 +113,11 @@ class PreprocessImage:
             lookup_table[0, i] = np.clip(pow(i / 255.0, gamma) * 255.0, 0, 255)
 
         corrected_image = cv2.LUT(image, lookup_table)
-        threshed = PreprocessImage.thresholding(corrected_image)
+        threshed = PreprocessImage.apply_threshold(corrected_image)
         return threshed
 
     @staticmethod
-    def process_dark_barcode(image):
+    def too_dark(image):
         _, binary_image = cv2.threshold(image, 200, 255, cv2.THRESH_BINARY_INV)
 
         inpainted_image = cv2.inpaint(image, binary_image, inpaintRadius=3, flags=cv2.INPAINT_TELEA)
@@ -130,16 +130,16 @@ class PreprocessImage:
 
         _, binary_result = cv2.threshold(lightened_image, 50, 255, cv2.THRESH_BINARY)
 
-        bar_height = PreprocessImage.calculate_vertical_bar_height(binary_result)
+        bar_height = PreprocessImage.get_barcode_height(binary_result)
 
-        closed_image = PreprocessImage.apply_closing(binary_result)
-        opened_image = PreprocessImage.apply_opening(closed_image, bar_height)
-        threshed = PreprocessImage.thresholding(opened_image)
+        closed_image = PreprocessImage.close_the_door(binary_result)
+        opened_image = PreprocessImage.open_the_door(closed_image, bar_height)
+        threshed = PreprocessImage.apply_threshold(opened_image)
 
         return threshed
 
     @staticmethod
-    def la2ena_el_contrast(image):
+    def enhance_contrast(image):
         histogram = cv2.calcHist([image], [0], None, [256], [0, 256])
         histogram = histogram / histogram.sum()
 
@@ -154,20 +154,14 @@ class PreprocessImage:
         return threshed
 
     @staticmethod
-    def crop_rows(image, num_rows=2):
-        """
-        Crop the top N rows of the image.
-        """
+    def remove_top_rows(image, num_rows=2):
         if image.shape[0] <= num_rows:
             raise ValueError("Image has fewer rows than the number of rows to crop.")
         cropped_image = image[num_rows:, :]
         return cropped_image
 
     @staticmethod
-    def crop_col(image, left_crop=0, right_crop=0):
-        """
-        Crop the specified number of columns from the left and right sides of the image.
-        """
+    def trim_sides(image, left_crop=0, right_crop=0):
         rows, cols = image.shape[:2]
 
         left_crop = max(0, left_crop)
@@ -177,7 +171,3 @@ class PreprocessImage:
 
         cropped_image = image[:, left_crop:cols - right_crop]
         return cropped_image
-
-
-
-
