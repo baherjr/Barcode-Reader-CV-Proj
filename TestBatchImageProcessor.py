@@ -2,8 +2,8 @@ import os
 from ImageProcessor import ImageProcessor
 
 # Specify the paths for test images and output directory
-TEST_PATH = 'Test Cases-20241123'
-OUTPUT_PATH = 'processed_barcodes'
+TEST_PATH = 'tests'
+OUTPUT_PATH = 'processed'
 
 
 def main():
