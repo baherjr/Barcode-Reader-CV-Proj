@@ -71,7 +71,7 @@ class AnalyzeImage:
         return grey_pixel_ratio > pixel_ratio
 
     @staticmethod
-    def  check_for_salt_and_pepper(image):
+    def check_for_salt_and_pepper(image):
         f_transform_shifted, magnitude_spectrum = AnalyzeImage.fft_and_magnitude_spectrum(image)
 
         rows, cols = image.shape
@@ -109,7 +109,6 @@ class AnalyzeImage:
 
         # Extract the rotation angle from the rectangle
         angle = rect[2]
-        print(angle)
         # Check if the rotation exceeds the threshold
         return abs(angle) != rotation_threshold
 
@@ -142,19 +141,12 @@ class AnalyzeImage:
         # Compute z-score of the maximum value
         z_score = (max_value - mean_value) / std_deviation if std_deviation != 0 else 0
 
-        print(f"Magnitude Spectrum (Normalized):")
-        print(magnitude_spectrum_normalized[:5, :5])  # Print first 5x5 segment for brevity
-        print(f"Highest Value in Magnitude Spectrum: {max_value}")
-        print(f"Position of Highest Value: {max_position}")
-        print(f"Standard Deviation: {std_deviation}")
-        print(f"Z-score of the Maximum Value: {z_score}")
-
         # Detection threshold based on z-score
         detection_threshold = 50 * std_deviation  # Adjust this value if needed
         return z_score > detection_threshold
 
     @staticmethod
-    def obstacle_detection(image):
+    def spot_the_obstacle_course(image):
         sobel = cv2.Sobel(image, cv2.CV_64F, 1, 0, ksize=3)
         sobel_abs = np.absolute(sobel)
         sobel_normalized = np.uint8(255 * sobel_abs / np.max(sobel_abs))
