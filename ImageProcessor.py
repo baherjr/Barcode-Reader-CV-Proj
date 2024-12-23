@@ -7,7 +7,7 @@ from AnalyzeImageUtils import AnalyzeImage
 
 
 class ImageProcessor:
-    OUTPUT_PATH = '../../../PycharmProjects/Computer_Vision_Project/processed_barcodes'
+    OUTPUT_PATH = 'processed_barcodes'
 
     def __init__(self, image_paths):
         self.image_paths = image_paths

@@ -2,8 +2,8 @@ import os
 from ImageProcessor import ImageProcessor
 
 # Specify the paths for test images and output directory
-TEST_PATH = '../../../PycharmProjects/Computer_Vision_Project/Test Cases-20241123'
-OUTPUT_PATH = '../../../PycharmProjects/Computer_Vision_Project/processed_barcodes'
+TEST_PATH = 'Test Cases-20241123'
+OUTPUT_PATH = 'processed_barcodes'
 
 
 def main():
@@ -25,8 +25,9 @@ def main():
     processor = ImageProcessor(image_paths)
 
     print("Starting image processing...")
-    # Process all images
-    processor.process_all_images()
+    # Process each image
+    for image_path in image_paths:
+        processor.process_image(image_path)
     print("Image processing completed.")
 
     # Provide output path information

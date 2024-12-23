@@ -3,7 +3,6 @@ import cv2
 import math
 from scipy.signal import find_peaks
 
-from Almost import calculate_vertical_bar_height
 
 
 class PreprocessImage:
@@ -129,7 +128,7 @@ class PreprocessImage:
 
         _, binary_result = cv2.threshold(lightened_image, 50, 255, cv2.THRESH_BINARY)
 
-        bar_height = calculate_vertical_bar_height(binary_result)
+        bar_height = PreprocessImage.calculate_vertical_bar_height(binary_result)
 
         closed_image = PreprocessImage.apply_closing(binary_result)
         opened_image = PreprocessImage.apply_opening(closed_image, bar_height)
