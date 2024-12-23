@@ -514,6 +514,7 @@ image_paths = [
     r"C:/Users/REDLINE/Desktop/tests/11 - bayza 5ales di bsara7a.jpg"
 ]
 
+
 # Function to process a single image
 def process_image(image_path):
     img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
@@ -569,8 +570,6 @@ def process_image(image_path):
     threshed = thresholding(processed_img)
     contoured = contour(threshed)
     cropped = crop_rows(contoured, 3)
-    cv2.imshow('Processed', cropped)
-    cv2.waitKey(0)  # Wait for a key press to close the window
 
     # Further processing if needed
     processed_img = cv2.morphologyEx(cropped, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (1, 2)))
@@ -579,16 +578,22 @@ def process_image(image_path):
     processed_img = apply_closing(processed_img)
     threshed = thresholding(processed_img)
     final_img = contour(threshed)
-    cv2.imshow('Final', final_img)
-    cv2.waitKey(0)
+
+    # Save processed image
+    save_path = r"C:/Users/REDLINE/Desktop/barcode/processed"
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+    save_image_path = os.path.join(save_path, os.path.basename(image_path))
+    cv2.imwrite(save_image_path, final_img)
 
     # Decode barcode
     decoded_digits = decode_barcode(final_img)
     print("Decoded digits:", decoded_digits)
 
+    # Save decoded digits
+    with open(r"C:/Users/REDLINE/Desktop/barcode/decoded_digits.txt", "a") as file:
+        file.write(f"{os.path.basename(image_path)}: {' '.join(decoded_digits)}\n")
+
 # Process all images
 for path in image_paths:
     process_image(path)
-
-# Close all windows
-cv2.destroyAllWindows()
