@@ -28,7 +28,7 @@ class BarcodeDecoder:
 
         return abs(width - target_size) <= BarcodeDecoder.TOLERANCE
 
-    def decode_barcode(self, img):
+    def crack_the_code(self, img):
 
         mean = img.mean(axis=0)
 
@@ -87,15 +87,12 @@ class BarcodeDecoder:
                     current_digit_widths += self.NARROW
                 elif self.within_tolerance(count, black_wide_bar_size):
                     current_digit_widths += self.WIDE
-                else:
-                    print(f"Unclassified black bar width: {count}")
+
             else:  # White bar
                 if self.within_tolerance(count, white_narrow_bar_size):
                     current_digit_widths += self.NARROW
                 elif self.within_tolerance(count, white_wide_bar_size):
                     current_digit_widths += self.WIDE
-                else:
-                    print(f"Unclassified white bar width: {count}")
 
             if current_digit_widths in self.CODE11_WIDTHS:
                 digits.append(self.CODE11_WIDTHS[current_digit_widths])  # Decode the digit
