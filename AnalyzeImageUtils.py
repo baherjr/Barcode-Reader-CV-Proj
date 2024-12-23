@@ -1,12 +1,11 @@
 import cv2
 import numpy as np
 from scipy import fftpack
-from PreprocessImageUtils import PreprocessImage
 
 
 class AnalyzeImage:
     @staticmethod
-    def high_pass_filter(fft_shift, cutoff_frequency=30):
+    def apply_high_pass_filter(fft_shift, cutoff_frequency=30):
         rows, cols = fft_shift.shape
         mask = np.ones((rows, cols))
 
@@ -14,14 +13,23 @@ class AnalyzeImage:
         mask[center_row - cutoff_frequency:center_row + cutoff_frequency,
         center_col - cutoff_frequency:center_col + cutoff_frequency] = 0
 
-        fft_shift_hp = fft_shift * mask
-        return fft_shift_hp
+        return fft_shift * mask
 
     @staticmethod
-    def detect_blurred(image):
+    def calculate_histogram(image):
+        histogram = cv2.calcHist([image], [0], None, [256], [0, 256])
+        return histogram / histogram.sum()
+
+    @staticmethod
+    def fft_and_magnitude_spectrum(image):
         f_transform = np.fft.fft2(image)
         f_transform_shifted = np.fft.fftshift(f_transform)
         magnitude_spectrum = 20 * np.log(np.abs(f_transform_shifted))
+        return f_transform_shifted, magnitude_spectrum
+
+    @staticmethod
+    def is_this_image_wearing_glasses(image):
+        f_transform_shifted, magnitude_spectrum = AnalyzeImage.fft_and_magnitude_spectrum(image)
 
         rows, cols = image.shape
         center_row = rows // 2
@@ -30,98 +38,57 @@ class AnalyzeImage:
         roi = magnitude_spectrum[center_row - roi_size:center_row + roi_size + 1,
               center_col - roi_size:center_col + roi_size + 1]
         avg_roi = round(np.mean(roi))
-        corner1_avg = round(np.mean(magnitude_spectrum[0:10, 0:10]))
-        corner2_avg = round(np.mean(magnitude_spectrum[0:10, -10:]))
-        corner3_avg = round(np.mean(magnitude_spectrum[-10:, 0:10]))
-        corner4_avg = round(np.mean(magnitude_spectrum[-10:, -10:]))
-        corners_avg = (corner1_avg + corner2_avg + corner3_avg + corner4_avg) / 4
+        corners = [magnitude_spectrum[0:10, 0:10], magnitude_spectrum[0:10, -10:],
+                   magnitude_spectrum[-10:, 0:10], magnitude_spectrum[-10:, -10:]]
+        corners_avg = sum(round(np.mean(corner)) for corner in corners) / 4
 
         if np.mean(magnitude_spectrum[100:-100, 100:-100]) == float('-inf'):
             return "FalseINF"
 
-        low_avg_threshold = 235
-        high_avg_threshold = 90
-
-        if avg_roi > low_avg_threshold and corners_avg < high_avg_threshold:
-            return True
-        else:
-            return False
+        low_avg_threshold, high_avg_threshold = 235, 90
+        return avg_roi > low_avg_threshold and corners_avg < high_avg_threshold
 
     @staticmethod
-    def detect_high_brightness(image):
+    def check_if_its_sunbathing(image):
         pixel_ratio = 0.905
-        dark_threshold = 20
-        light_threshold = 220
-
-        histogram = cv2.calcHist([image], [0], None, [256], [0, 256])
-        histogram = histogram / histogram.sum()
-        light_pixels_ratio = histogram[light_threshold:].sum()
-        dark_pixels_ratio = histogram[:dark_threshold].sum()
-
-        if light_pixels_ratio > pixel_ratio:
-            return True
-        else:
-            return False
+        dark_threshold, light_threshold = 20, 220
+        histogram = AnalyzeImage.calculate_histogram(image)
+        return histogram[light_threshold:].sum() > pixel_ratio
 
     @staticmethod
-    def detect_low_brightness(image):
+    def is_this_a_midnight_snack(image):
         pixel_ratio = 0.905
-        dark_threshold = 20
-        light_threshold = 220
-
-        histogram = cv2.calcHist([image], [0], None, [256], [0, 256])
-        histogram = histogram / histogram.sum()
-        light_pixels_ratio = histogram[light_threshold:].sum()
-        dark_pixels_ratio = histogram[:dark_threshold].sum()
-        if dark_pixels_ratio > pixel_ratio:
-            return True
-        else:
-            return False
+        dark_threshold, light_threshold = 20, 220
+        histogram = AnalyzeImage.calculate_histogram(image)
+        return histogram[:dark_threshold].sum() > pixel_ratio
 
     @staticmethod
-    def detect_contrast(image):
+    def check_contrast(image):
         pixel_ratio = 0.8
-        lower_bound = 100
-        upper_bound = 200
-
-        histogram = cv2.calcHist([image], [0], None, [256], [0, 256])
-        histogram = histogram / histogram.sum()
-
+        lower_bound, upper_bound = 100, 200
+        histogram = AnalyzeImage.calculate_histogram(image)
         grey_pixel_ratio = histogram[lower_bound:upper_bound].sum()
-        if grey_pixel_ratio > pixel_ratio:
-            return True
-        else:
-            return False
+        return grey_pixel_ratio > pixel_ratio
 
     @staticmethod
-    def detect_sltnp(image):
-        f_transform = np.fft.fft2(image)
-        f_transform_shifted = np.fft.fftshift(f_transform)
-        magnitude_spectrum = 20 * np.log(np.abs(f_transform_shifted))
+    def  check_for_salt_and_pepper(image):
+        f_transform_shifted, magnitude_spectrum = AnalyzeImage.fft_and_magnitude_spectrum(image)
 
         rows, cols = image.shape
-        center_row = rows // 2
-        center_col = cols // 2
+        center_row, center_col = rows // 2, cols // 2
         roi_size = 9
-        dc_component = magnitude_spectrum[center_row, center_col]
         roi = magnitude_spectrum[center_row - roi_size:center_row + roi_size + 1,
               center_col - roi_size:center_col + roi_size + 1]
         avg_roi = round(np.mean(roi))
-        corner1_avg = round(np.mean(magnitude_spectrum[0:10, 0:10]))
-        corner2_avg = round(np.mean(magnitude_spectrum[0:10, -10:]))
-        corner3_avg = round(np.mean(magnitude_spectrum[-10:, 0:10]))
-        corner4_avg = round(np.mean(magnitude_spectrum[-10:, -10:]))
-        corners_avg = (corner1_avg + corner2_avg + corner3_avg + corner4_avg) / 4
+        corners = [magnitude_spectrum[0:10, 0:10], magnitude_spectrum[0:10, -10:],
+                   magnitude_spectrum[-10:, 0:10], magnitude_spectrum[-10:, -10:]]
+        corners_avg = sum(round(np.mean(corner)) for corner in corners) / 4
 
         if np.mean(magnitude_spectrum[100:-100, 100:-100]) == float('-inf'):
             return "FalseINF"
 
-        low_avg_threshold = 200
-        high_avg_threshold = 200
-        if avg_roi > low_avg_threshold and corners_avg > high_avg_threshold:
-            return True
-        else:
-            return False
+        low_avg_threshold, high_avg_threshold = 200, 200
+        return avg_roi > low_avg_threshold and corners_avg > high_avg_threshold
 
     @staticmethod
     def is_rotated(img, rotation_threshold=10):
@@ -144,9 +111,7 @@ class AnalyzeImage:
         angle = rect[2]
         print(angle)
         # Check if the rotation exceeds the threshold
-        is_rotated = (abs(angle) != rotation_threshold)
-
-        return is_rotated
+        return abs(angle) != rotation_threshold
 
     @staticmethod
     def detect_periodic(image):
@@ -158,7 +123,7 @@ class AnalyzeImage:
         fft_shift = np.fft.fftshift(fft)
 
         # Apply high-pass filter to remove low-frequency components
-        fft_shift = AnalyzeImage.high_pass_filter(fft_shift, cutoff_frequency=5)
+        fft_shift = AnalyzeImage.apply_high_pass_filter(fft_shift, cutoff_frequency=5)
 
         # Calculate magnitude spectrum
         magnitude_spectrum = np.abs(fft_shift)
@@ -186,9 +151,7 @@ class AnalyzeImage:
 
         # Detection threshold based on z-score
         detection_threshold = 50 * std_deviation  # Adjust this value if needed
-        is_periodic = z_score > detection_threshold
-
-        return is_periodic
+        return z_score > detection_threshold
 
     @staticmethod
     def obstacle_detection(image):
@@ -208,4 +171,3 @@ class AnalyzeImage:
                     break
 
         return is_obstructed
-

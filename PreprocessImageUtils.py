@@ -32,15 +32,17 @@ class PreprocessImage:
         return height
 
     @staticmethod
+    def morphology_operation(image, operation, kernel_size):
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, kernel_size)
+        return cv2.morphologyEx(image, operation, kernel)
+
+    @staticmethod
     def apply_closing(image):
-        closed_image = cv2.morphologyEx(image, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)))
-        return closed_image
+        return PreprocessImage.morphology_operation(image, cv2.MORPH_CLOSE, (3, 3))
 
     @staticmethod
     def apply_opening(image, bar_height):
-        opened_image = cv2.morphologyEx(image, cv2.MORPH_OPEN,
-                                        cv2.getStructuringElement(cv2.MORPH_RECT, (1, bar_height)))
-        return opened_image
+        return PreprocessImage.morphology_operation(image, cv2.MORPH_OPEN, (1,bar_height))
 
     @staticmethod
     def apply_gaussian(image, count=1):

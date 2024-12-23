@@ -20,11 +20,11 @@ class ImageProcessor:
             return
 
         # Detect various image issues
-        blur_flag = AnalyzeImage.detect_blurred(img)
+        blur_flag = AnalyzeImage.is_this_image_wearing_glasses(img)
         contrast_flag = AnalyzeImage.detect_contrast(img)
-        salt_pepper_flag = AnalyzeImage.detect_sltnp(img)
-        high_brightness_flag = AnalyzeImage.detect_high_brightness(img)
-        low_brightness_flag = AnalyzeImage.detect_low_brightness(img)
+        salt_pepper_flag = AnalyzeImage.check_for_salt_and_pepper(img)
+        high_brightness_flag = AnalyzeImage.check_if_its_sunbathing(img)
+        low_brightness_flag = AnalyzeImage.is_this_a_midnight_snack(img)
         periodic_flag = AnalyzeImage.detect_periodic(img)
 
         print(f"Image: {image_path}")
