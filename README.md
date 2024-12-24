@@ -23,7 +23,7 @@ For the development of our barcode processing system, an object-oriented program
 **Integration:** All these components are combined within the ImageProcessor class, which orchestrates the sequence of operations. This class manages the workflow by first analyzing the image for issues, then applying the necessary preprocessing steps from both PreprocessImage and ImageFrequencyTransformer to correct those issues.
 
 We have also provided an implementation for TestBatchImageProcessor for testing purposes, allowing us to process several images in batch mode. This helps us in testing our system on a wide range of images for robustness and reliability. We have also created an ImageProcessingGUI using customtkinter for interactive and user-friendly operation. This provides a graphical interface where users can upload single images, see immediate processing results, and visualize the effects of our preprocessing techniques.
-
+![img.png](img.png)
 # 1 AnalyzeImage Class
 
 The AnalyzeImage class serves as the diagnostic tool within our image processing system. Its primary function is to analyze an input image for various quality issues that might hinder further processing or interpretation. The workflow involves:
