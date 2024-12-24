@@ -1,6 +1,6 @@
 import os
 import cv2
-from ImageTransformerUtils import ImageTransformer
+from ImageTransformerUtils import ImageFrequencyTransformer
 from PreprocessImageUtils import PreprocessImage
 from BarcodeDecoder import BarcodeDecoder
 from AnalyzeImageUtils import AnalyzeImage
@@ -25,18 +25,20 @@ class ImageProcessor:
 
     def apply_preprocessing(self, img, issues):
         """Apply corrections based on detected issues."""
-        if issues["Frequency Discrepancies"]:
-            img = ImageTransformer.periodic_noise_removal(img, 0.1)
-        if issues["Blurred"]:
-            img = ImageTransformer.apply_sharpening(img)
-        if issues["High Brightness"]:
-            img = PreprocessImage.gamma_correction(img, 30)
-        if issues["Low Brightness"]:
-            img = PreprocessImage.too_dark(img)
-        if issues["SnP"]:
-            img = PreprocessImage.remove_seasoning(img)
-        if issues["Contrast"]:
-            img = PreprocessImage.enhance_contrast(img)
+        corrections = [
+            ("Frequency Discrepancies", lambda img: ImageFrequencyTransformer.remove_periodic_noise(img, 0.18)),
+            ("Blurred", ImageFrequencyTransformer.apply_sharpen_filter),
+            ("High Brightness", lambda img: PreprocessImage.gamma_correction(img, 25)),
+            ("Low Brightness", PreprocessImage.too_dark),
+            ("SnP", PreprocessImage.remove_seasoning),
+            ("Contrast", PreprocessImage.enhance_contrast),
+        ]
+
+        # Apply each correction conditionally based on detected issues
+        for flag, correction_func in corrections:
+            if issues.get(flag):
+                img = correction_func(img)
+
         return img
 
     def handle_obstruction_flags(self, img, issues):
@@ -58,7 +60,7 @@ class ImageProcessor:
             PreprocessImage.crop_to_contour(threshed), 3
         )
         processed_img = cv2.morphologyEx(
-            cropped, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (1, 2))
+            cropped, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (1, 2)) # (1,2) is the ideal SE for fixing barcodes
         )
         height = PreprocessImage.get_barcode_height(processed_img)
         processed_img = PreprocessImage.open_the_door(processed_img, height)

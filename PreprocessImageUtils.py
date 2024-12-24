@@ -2,7 +2,7 @@ import numpy as np
 import cv2
 import math
 from scipy.signal import find_peaks
-
+from scipy import fftpack
 
 
 class PreprocessImage:
@@ -171,3 +171,4 @@ class PreprocessImage:
 
         cropped_image = image[:, left_crop:cols - right_crop]
         return cropped_image
+
