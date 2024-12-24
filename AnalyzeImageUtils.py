@@ -5,13 +5,13 @@ from scipy import fftpack
 
 class AnalyzeImage:
     @staticmethod
-    def apply_high_pass_filter(fft_shift, cutoff_frequency=30):
-        rows, cols = fft_shift.shape
-        mask = np.ones((rows, cols))
+    def apply_high_pass_filter(fft_shift, cutoff=30):
+        h, w = fft_shift.shape
+        mask = np.ones((h, w), dtype=bool)
 
-        center_row, center_col = rows // 2, cols // 2
-        mask[center_row - cutoff_frequency:center_row + cutoff_frequency,
-        center_col - cutoff_frequency:center_col + cutoff_frequency] = 0
+        center_y, center_x = h // 2, w // 2
+        y, x = np.ogrid[-center_y:h - center_y, -center_x:w - center_x]
+        mask = (x ** 2 + y ** 2 > cutoff ** 2)
 
         return fft_shift * mask
 
@@ -22,45 +22,50 @@ class AnalyzeImage:
 
     @staticmethod
     def fft_and_magnitude_spectrum(image):
-        f_transform = np.fft.fft2(image)
-        f_transform_shifted = np.fft.fftshift(f_transform)
-        magnitude_spectrum = 20 * np.log(np.abs(f_transform_shifted))
-        return f_transform_shifted, magnitude_spectrum
+        fft_result = np.fft.fft2(image)
+        shifted_fft = np.fft.fftshift(fft_result)
+        magnitude = 20 * np.log(np.abs(shifted_fft))
+        return shifted_fft, magnitude
 
-    @staticmethod
     def is_this_image_wearing_glasses(image):
-        f_transform_shifted, magnitude_spectrum = AnalyzeImage.fft_and_magnitude_spectrum(image)
+        transformed_image, spectrum = AnalyzeImage.fft_and_magnitude_spectrum(image)
 
-        rows, cols = image.shape
-        center_row = rows // 2
-        center_col = cols // 2
-        roi_size = 9
-        roi = magnitude_spectrum[center_row - roi_size:center_row + roi_size + 1,
-              center_col - roi_size:center_col + roi_size + 1]
-        avg_roi = round(np.mean(roi))
-        corners = [magnitude_spectrum[0:10, 0:10], magnitude_spectrum[0:10, -10:],
-                   magnitude_spectrum[-10:, 0:10], magnitude_spectrum[-10:, -10:]]
-        corners_avg = sum(round(np.mean(corner)) for corner in corners) / 4
+        height, width = image.shape
+        mid_height, mid_width = height // 2, width // 2
+        roi_dim = 9
 
-        if np.mean(magnitude_spectrum[100:-100, 100:-100]) == float('-inf'):
+        region_of_interest = spectrum[
+                             mid_height - roi_dim: mid_height + roi_dim + 1,
+                             mid_width - roi_dim: mid_width + roi_dim + 1
+                             ]
+        roi_avg = round(np.mean(region_of_interest))
+
+        corner_regions = [
+            spectrum[0:10, 0:10],
+            spectrum[0:10, -10:],
+            spectrum[-10:, 0:10],
+            spectrum[-10:, -10:]
+        ]
+        corner_avg = sum(round(np.mean(corner)) for corner in corner_regions) / 4
+
+        if np.mean(spectrum[100:-100, 100:-100]) == float('-inf'):
             return "FalseINF"
 
-        low_avg_threshold, high_avg_threshold = 235, 90
-        return avg_roi > low_avg_threshold and corners_avg < high_avg_threshold
+        low_threshold, high_threshold = 235, 90
+        return roi_avg > low_threshold and corner_avg < high_threshold
+
+    def check_if_its_sunbathing(image, light_threshold=220, pixel_ratio=0.905):
+        histogram = AnalyzeImage.calculate_histogram(image)
+        light_pixels = histogram[light_threshold:].sum()
+        total_pixels = np.sum(histogram)
+        return light_pixels / total_pixels > pixel_ratio
 
     @staticmethod
-    def check_if_its_sunbathing(image):
-        pixel_ratio = 0.905
-        dark_threshold, light_threshold = 20, 220
+    def is_this_a_midnight_snack(image, dark_threshold=20, pixel_ratio=0.905):
         histogram = AnalyzeImage.calculate_histogram(image)
-        return histogram[light_threshold:].sum() > pixel_ratio
-
-    @staticmethod
-    def is_this_a_midnight_snack(image):
-        pixel_ratio = 0.905
-        dark_threshold, light_threshold = 20, 220
-        histogram = AnalyzeImage.calculate_histogram(image)
-        return histogram[:dark_threshold].sum() > pixel_ratio
+        dark_pixels = histogram[:dark_threshold].sum()
+        total_pixels = np.sum(histogram)
+        return dark_pixels / total_pixels > pixel_ratio
 
     @staticmethod
     def check_contrast(image):
@@ -72,93 +77,109 @@ class AnalyzeImage:
 
     @staticmethod
     def check_for_salt_and_pepper(image):
-        f_transform_shifted, magnitude_spectrum = AnalyzeImage.fft_and_magnitude_spectrum(image)
+        # Convert image to grayscale if it's not already (assuming image is in [0, 255] range)
+        if len(image.shape) == 3:
+            image = np.mean(image, axis=2).astype(np.uint8)
 
-        rows, cols = image.shape
-        center_row, center_col = rows // 2, cols // 2
-        roi_size = 9
-        roi = magnitude_spectrum[center_row - roi_size:center_row + roi_size + 1,
-              center_col - roi_size:center_col + roi_size + 1]
-        avg_roi = round(np.mean(roi))
-        corners = [magnitude_spectrum[0:10, 0:10], magnitude_spectrum[0:10, -10:],
-                   magnitude_spectrum[-10:, 0:10], magnitude_spectrum[-10:, -10:]]
-        corners_avg = sum(round(np.mean(corner)) for corner in corners) / 4
+        # Flatten the image
+        flat_image = image.flatten()
 
-        if np.mean(magnitude_spectrum[100:-100, 100:-100]) == float('-inf'):
-            return "FalseINF"
+        # Count only the extreme pixels that are not part of large continuous areas
+        # This helps differentiate between noise and actual image features
 
-        low_avg_threshold, high_avg_threshold = 200, 200
-        return avg_roi > low_avg_threshold and corners_avg > high_avg_threshold
+        # Define a small window size for local analysis
+        window_size = 3
+
+        # Function to check if a pixel is isolated (noise-like)
+        def is_isolated_noise(pixel_value, i, j, image):
+            if 0 < i < image.shape[0] - 1 and 0 < j < image.shape[1] - 1:
+                window = image[i - 1:i + 2, j - 1:j + 2]
+                return np.sum(window == pixel_value) <= 1  # Very isolated
+            return False
+
+        # Count isolated salt and pepper pixels
+        salt_count = 0
+        pepper_count = 0
+        for i in range(image.shape[0]):
+            for j in range(image.shape[1]):
+                if image[i, j] == 255 and is_isolated_noise(255, i, j, image):
+                    salt_count += 1
+                elif image[i, j] == 0 and is_isolated_noise(0, i, j, image):
+                    pepper_count += 1
+
+        # Total pixel count
+        total_pixels = image.size
+
+        # Calculate percentage but only for isolated extreme pixels
+        noise_percentage = (salt_count + pepper_count) / total_pixels
+
+        # Thresholds for detecting noise, made very conservative
+        noise_threshold = 0.0005  # 0.05% of pixels, extremely conservative
+
+        # Return only if there's a significant amount of isolated noise
+        return noise_percentage > noise_threshold
 
     @staticmethod
     def is_rotated(img, rotation_threshold=10):
-        padded_image = cv2.copyMakeBorder(
-            img, 100, 100, 200, 200, cv2.BORDER_CONSTANT, value=[255]
-        )
+        img_with_border = cv2.copyMakeBorder(img, 100, 100, 200, 200, cv2.BORDER_CONSTANT, value=[255])
 
-        _, thresh = cv2.threshold(padded_image, 60, 255, cv2.THRESH_BINARY_INV)
+        _, inverted_threshold = cv2.threshold(img_with_border, 60, 255, cv2.THRESH_BINARY_INV)
 
-        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours_found, _ = cv2.findContours(inverted_threshold, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-        if not contours:
-            raise ValueError("No contours found in the image.")
+        if not contours_found:
+            raise ValueError("No contours found.")
 
-        largest_contour = max(contours, key=cv2.contourArea)
+        max_contour = max(contours_found, key=cv2.contourArea)
 
-        rect = cv2.minAreaRect(largest_contour)
+        min_area_rect = cv2.minAreaRect(max_contour)
 
-        # Extract the rotation angle from the rectangle
-        angle = rect[2]
-        # Check if the rotation exceeds the threshold
-        return abs(angle) != rotation_threshold
+        rotation_angle = min_area_rect[2]
+
+        return abs(rotation_angle) != rotation_threshold
 
     @staticmethod
-    def detect_periodic(image):
-        # Convert image to float for better precision in FFT operations
-        image_float = image.astype(np.float32)
+    def detect_periodic(img, cutoff=5, factor=50):
+        float_img = np.float32(img)
+        fft_img = np.fft.fft2(float_img)
+        fft_centered = np.fft.fftshift(fft_img)
 
-        # Perform 2D FFT
-        fft = np.fft.fft2(image_float)
-        fft_shift = np.fft.fftshift(fft)
+        filtered_fft = AnalyzeImage.apply_high_pass_filter(fft_centered, cutoff)
 
-        # Apply high-pass filter to remove low-frequency components
-        fft_shift = AnalyzeImage.apply_high_pass_filter(fft_shift, cutoff_frequency=5)
+        magnitude = np.abs(filtered_fft)
+        norm_magnitude = cv2.normalize(magnitude, None, 0, 255, cv2.NORM_MINMAX)
 
-        # Calculate magnitude spectrum
-        magnitude_spectrum = np.abs(fft_shift)
+        peak = np.max(norm_magnitude)
+        mean = np.mean(norm_magnitude)
+        std = np.std(norm_magnitude)
 
-        # Normalize the magnitude spectrum for visualization and analysis
-        magnitude_spectrum_normalized = cv2.normalize(magnitude_spectrum, None, 0, 255, cv2.NORM_MINMAX)
+        score = (peak - mean) / std if std != 0 else 0
+        threshold = factor * std
 
-        # Find the maximum value and its position in the spectrum
-        max_value = np.max(magnitude_spectrum_normalized)
-        max_position = np.unravel_index(np.argmax(magnitude_spectrum_normalized), magnitude_spectrum_normalized.shape)
-
-        # Calculate mean and standard deviation for statistical analysis
-        mean_value = np.mean(magnitude_spectrum_normalized)
-        std_deviation = np.std(magnitude_spectrum_normalized)
-
-        # Compute z-score of the maximum value
-        z_score = (max_value - mean_value) / std_deviation if std_deviation != 0 else 0
-
-        # Detection threshold based on z-score
-        detection_threshold = 50 * std_deviation  # Adjust this value if needed
-        return z_score > detection_threshold
+        return score > threshold
 
     @staticmethod
-    def spot_the_obstacle_course(image):
-        sobel = cv2.Sobel(image, cv2.CV_64F, 1, 0, ksize=3)
-        sobel_abs = np.absolute(sobel)
-        sobel_normalized = np.uint8(255 * sobel_abs / np.max(sobel_abs))
-        _, binary = cv2.threshold(sobel_normalized, 60, 255, cv2.THRESH_BINARY)
-        binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7)))
-        vertical_sum = np.sum(binary == 255, axis=0)
-        dense_columns = vertical_sum > 0.7 * np.max(vertical_sum)
-        barcode_detected = np.sum(dense_columns) > 50
+    def sobel_operation(image):
+        grad_x = cv2.Sobel(image, cv2.CV_64F, 1, 0, ksize=3)
+        grad_abs = np.abs(grad_x)
+        grad_scaled = np.uint8(255 * grad_abs / np.max(grad_abs))
+        return grad_scaled
+
+    @staticmethod
+    def spot_the_obstacle_course(image, threshold_value=50, density_threshold=0.7):
+        grad_scaled = AnalyzeImage.sobel_operation(image)
+
+        _, binarized = cv2.threshold(grad_scaled, 60, 255, cv2.THRESH_BINARY)
+        binarized = cv2.morphologyEx(binarized, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7)))
+
+        col_sum = np.sum(binarized == 255, axis=0)
+        dense_columns = col_sum > density_threshold * np.max(col_sum)
+        barcode_found = np.sum(dense_columns) > threshold_value
+
         is_obstructed = False
-        if barcode_detected:
-            for i in range(len(vertical_sum)):
-                if dense_columns[i] and vertical_sum[i] < (np.max(vertical_sum) - 70):
+        if barcode_found:
+            for i in range(len(col_sum)):
+                if dense_columns[i] and col_sum[i] < (np.max(col_sum) - 70):
                     is_obstructed = True
                     break
 

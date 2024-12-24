@@ -181,38 +181,49 @@ class PreprocessImage:
 
     @staticmethod
     def too_dark(image):
-        _, binary_image = cv2.threshold(image, 200, 255, cv2.THRESH_BINARY_INV)
-        inpainted_image = cv2.inpaint(image, binary_image, inpaintRadius=3, flags=cv2.INPAINT_TELEA)
-
-        bright_mask = cv2.threshold(inpainted_image, 10, 255, cv2.THRESH_BINARY)[1]
-        lightened_image = np.where(
+        _, dark_areas = cv2.threshold(image, 200, 255, cv2.THRESH_BINARY_INV)
+        inpainted = cv2.inpaint(image, dark_areas, inpaintRadius=3, flags=cv2.INPAINT_TELEA)
+        bright_mask = cv2.threshold(inpainted, 10, 255, cv2.THRESH_BINARY)[1]
+        lightened = np.where(
             bright_mask == 255,
-            np.clip(inpainted_image * 4, 0, 255).astype(np.uint8),
-            inpainted_image
+            np.clip(inpainted * 4, 0, 255).astype(np.uint8),
+            inpainted
         )
+        binary = cv2.threshold(lightened, 50, 255, cv2.THRESH_BINARY)[1]
+        bar_height = PreprocessImage.get_barcode_height(binary)
+        opened = PreprocessImage.open_the_door(PreprocessImage.close_the_door(binary), bar_height)
+        return PreprocessImage.apply_threshold(opened)
 
-        binary_result = cv2.threshold(lightened_image, 50, 255, cv2.THRESH_BINARY)[1]
-        bar_height = PreprocessImage.get_barcode_height(binary_result)
-
-        return PreprocessImage.apply_threshold(
-            PreprocessImage.open_the_door(
-                PreprocessImage.close_the_door(binary_result), bar_height
-            )
-        )
 
     @staticmethod
-    def enhance_contrast(image):
-        histogram = cv2.calcHist([image], [0], None, [256], [0, 256]).ravel()
-        histogram /= histogram.sum()
-        histogram_diff = np.diff(histogram)
-        # Find peaks in the histogram difference
-        peaks, _ = find_peaks(histogram_diff)
-        if len(peaks) == 0:  # Handle rare case where no peaks are found
-            return image
-        top_peaks = peaks[np.argsort(histogram_diff[peaks])[-2:]]
-        midpoint_intensity = np.mean(top_peaks)
-        _, thresholded_image = cv2.threshold(image, math.ceil(midpoint_intensity), 255, cv2.THRESH_BINARY)
-        return thresholded_image
+    def enhance_contrast(image, lower_percentile=0.25, upper_percentile=0.75, apply_threshold=True):
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if len(image.shape) == 3 else image
+
+        hist = cv2.calcHist([gray], [0], None, [256], [0, 256]).ravel()
+        hist = hist / hist.sum()  # Normalize histogram
+
+        cum_sum = np.cumsum(hist)
+        lower = np.argmin(np.abs(cum_sum - lower_percentile))
+        upper = np.argmin(np.abs(cum_sum - upper_percentile))
+
+
+        if lower == upper or lower == 0 or upper == 255:
+            return gray
+
+
+        midpoint = (lower + upper) / 2
+
+
+        alpha = 255.0 / (upper - lower)
+        beta = -alpha * lower
+
+        contrasted = np.clip(alpha * gray + beta, 0, 255).astype(np.uint8)
+
+        if apply_threshold:
+            _, thresholded = cv2.threshold(contrasted, int(math.ceil(midpoint)), 255, cv2.THRESH_BINARY)
+            return thresholded
+        else:
+            return contrasted
 
     @staticmethod
     def remove_top_rows(image, num_rows=2):
