@@ -19,14 +19,13 @@ class ImageFrequencyTransformer:
         """
         Creates a mask to suppress noise based on the magnitude spectrum.
         """
-        magnitude_spectrum = np.abs(shifted_transform)
-        max_magnitude_value = np.max(magnitude_spectrum)
+        max_magnitude_value = np.max(np.abs(shifted_transform))
 
         rows, cols = image_shape
         noise_cutoff = max_magnitude_value * magnitude_threshold
 
         noise_mask = np.ones((rows, cols), dtype=np.float32)
-        noise_mask[magnitude_spectrum >= noise_cutoff] = 0
+        noise_mask[np.abs(shifted_transform) >= noise_cutoff] = 0
 
         return noise_mask
 
@@ -35,18 +34,22 @@ class ImageFrequencyTransformer:
         """
         Applies the noise mask and performs inverse Fourier Transform to return to the spatial domain.
         """
-        filtered_transform_shifted = shifted_transform * noise_mask
-        filtered_transform = fftpack.ifftshift(filtered_transform_shifted)
+        filtered_transform = fftpack.ifftshift(shifted_transform * noise_mask)
         filtered_image = fftpack.ifft2(filtered_transform).real
         return filtered_image
+
 
     @staticmethod
     def normalize_and_threshold(filtered_image):
         """
-        Normalizes the filtered image and applies thresholding.
+        - Normalizes the filtered image and applies thresholding.
+        - alpha & beta(maxval too) are 0 and 255 because code 11 barcodes consists of black bars with a white
+        - a threshold of '105' ensures a clear separation between bars (black regions) and spaces (white regions)
+        while minimizing distortions from intermediate intensity values that can occur at boundaries.
         """
-        normalized_image = cv2.normalize(filtered_image, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-        _, thresholded_image = cv2.threshold(normalized_image, 105, 255, cv2.THRESH_BINARY)
+        normalized_image = cv2.normalize(filtered_image, None, 0, 255, cv2.NORM_MINMAX)
+        optimal_threshold = ImageFrequencyTransformer.empirical_tuning_threshold(normalized_image.astype(np.uint8))
+        _, thresholded_image = cv2.threshold(normalized_image.astype(np.uint8), thresh=105, maxval=255, type=cv2.THRESH_BINARY)
         return thresholded_image
 
     @staticmethod
