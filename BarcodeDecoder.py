@@ -3,6 +3,7 @@ import cv2
 
 
 class BarcodeDecoder:
+    TOLERANCE = 1  # Allowed variation for determining narrow/wide bars
     NARROW = "0"
     WIDE = "1"
 
@@ -22,86 +23,138 @@ class BarcodeDecoder:
         "00100": "-",
     }
 
+    def __init__(self, debug=False):
+        """
+        Initialize the decoder with debugging capability.
+        """
+        self.debug = debug # Used for Testing what went wrong can be turned on view ImageProcessor
+
     @staticmethod
-    def determine_bar_sizes(self, pixels):
+    def within_tolerance(value, target):
         """
-        Analyzes the bar widths in the barcode and determines narrow and wide sizes.
+        Check if a value is within the tolerance range of the target.
         """
-        # Measure the width of consecutive bars
+        return abs(value - target) <= BarcodeDecoder.TOLERANCE
+
+    def crack_the_code(self, img):
+        """
+        Decode a barcode image to extract valid Code11 digits.
+
+        """
+        if self.debug:
+            print("=== Barcode Decoding Started ===")
+
+        # Step 1: Calculate column-wise mean and binarize
+        column_means = img.mean(axis=0)
+        if self.debug:
+            print(f"Column-wise mean intensities (truncated): {column_means[:20]} ...")
+
+        binary_array = np.where(column_means <= 127, 1, 0)
+        binary_pixels = ''.join(binary_array.astype(str))
+
+        if self.debug:
+            print(f"Binary representation (truncated): {binary_pixels[:50]} ...")
+
+        # Step 2: Determine bar widths and colors
+        bar_widths = self._calculate_bar_widths(binary_pixels)
+
+        # Step 3: Calculate narrow and wide bar sizes
+        bar_sizes = self._calculate_bar_sizes(bar_widths)
+        black_narrow, black_wide, white_narrow, white_wide = bar_sizes
+
+        if self.debug:
+            print(f"Black - Narrow: {black_narrow}, Wide: {black_wide}")
+            print(f"White - Narrow: {white_narrow}, Wide: {white_wide}")
+
+        # Step 4: Decode the barcode using measured widths
+        digits = self._decode_pixels(binary_pixels, bar_widths, *bar_sizes)
+
+        if self.debug:
+            print("\n=== Barcode Decoding Complete ===")
+            print(f"Decoded Digits: {digits}")
+
+        return digits
+
+    def _calculate_bar_widths(self, pixels):
+        """
+        Analyze the binary pixel string to group bars by color and width.
+        """
         bar_widths = []
+        prev_pixel = pixels[0]
         count = 1
 
         for i in range(1, len(pixels)):
-            if pixels[i] == pixels[i - 1]:
+            if pixels[i] == prev_pixel:
                 count += 1
             else:
-                bar_widths.append(count)
+                bar_widths.append((int(prev_pixel), count))
+                prev_pixel = pixels[i]
                 count = 1
-        bar_widths.append(count)  # Add last bar width
+        bar_widths.append((int(prev_pixel), count))  # Add the last bar
 
-        narrow = min(bar_widths)  # Narrow is the smallest bar width
-        wide_candidates = [width for width in set(bar_widths) if width > narrow]
-        wide = min(wide_candidates, default=narrow * 2)  # Default to 2x narrow if no candidates found
+        if self.debug:
+            print(f"Bar Widths (truncated): {bar_widths[:10]} ...")
+        return bar_widths
 
-        return narrow, wide
-    @staticmethod
-    def crack_the_code(self, img):
+    def _calculate_bar_sizes(self, bar_widths):
         """
-        Decodes a given processed image array of a barcode and returns the result as a list of digits.
-        :param img: Processed barcode image (2D array, grayscale or binary).
-        :return: Decoded digits as a list.
+        Calculate the narrow and wide sizes for both black and white bars.
+
         """
-        # Get the average intensity of each column in the image (binarized input)
-        mean = img.mean(axis=0)
+        black_bars = [width for color, width in bar_widths if color == 1]
+        white_bars = [width for color, width in bar_widths if color == 0]
 
-        # Convert to binary representation
-        binary = np.zeros_like(mean, dtype=np.uint8)
-        binary[mean <= 127] = 1  # Modify threshold if needed
-        binary[mean > 128] = 0  # Treat everything else as background
+        return (
+            min(black_bars), max(black_bars),
+            min(white_bars), max(white_bars)
+        )
 
-        # Convert binary array into a string of pixels
-        pixels = ''.join(binary.astype(str))
+    def _decode_pixels(self, pixels, bar_widths, black_narrow, black_wide, white_narrow, white_wide):
+        """
+        Decode binary pixels into Code11 digits using the given bar sizes.
 
-        # Dynamically determine narrow and wide sizes
-        narrow, wide = self.determine_bar_sizes(pixels)
-
-        # Decode the pixel sequence into digits
+        """
         digits = []
+        current_digit_widths = ''
         pixel_index = 0
-        current_digit_widths = ""
         skip_next = False
 
         while pixel_index < len(pixels):
             if skip_next:
-                # Skip the separator
-                pixel_index += narrow
+                pixel_index += white_narrow if pixels[pixel_index] == '0' else black_narrow
                 skip_next = False
                 continue
 
-            # Measure the width of consecutive pixels
             count = 1
             try:
                 while pixels[pixel_index] == pixels[pixel_index + 1]:
                     count += 1
                     pixel_index += 1
             except IndexError:
-                break  # Exit if we reach the end of the pixels string
+                pass  # End of pixel sequence
 
-            pixel_index += 1
+            pixel_index += 1  # Move to next pixel
+            current_color = 1 if pixels[pixel_index - 1] == '1' else 0
+            is_black = current_color == 1
 
-            # Classify the bar as narrow or wide based on its width
-            if narrow - 1 <= count <= narrow + 1:  # Allow for tolerance
+            if self.within_tolerance(count, black_narrow if is_black else white_narrow):
                 current_digit_widths += self.NARROW
-            elif wide - 2 <= count <= wide + 2:  # Use a range for wide classification
+            elif self.within_tolerance(count, black_wide if is_black else white_wide):
                 current_digit_widths += self.WIDE
-            else:
-                # If the width doesn't match, ignore this segment (likely noise)
-                continue
 
-            # Check if the extracted widths match a digit pattern
+            if self.debug:
+                print(f"Measured bar - Count: {count}, Color: {'Black' if is_black else 'White'}")
+                print(f"Current Digit Widths: {current_digit_widths}")
+
             if current_digit_widths in self.CODE11_WIDTHS:
-                digits.append(self.CODE11_WIDTHS[current_digit_widths])
-                current_digit_widths = ""  # Reset for the next digit
-                skip_next = True  # Skip the separator on the next iteration
+                digit = self.CODE11_WIDTHS[current_digit_widths]
+                digits.append(digit)
+
+                if self.debug:
+                    print(f"Decoded Pattern: {current_digit_widths} -> {digit}")
+
+                current_digit_widths = ''
+                skip_next = True  # Skip separator on the next iteration
 
         return digits
+

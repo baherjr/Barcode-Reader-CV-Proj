@@ -77,7 +77,7 @@ class ImageProcessor:
 
     def decode_barcode(self, img, image_name):
         """Decode barcode from image and save decoded digits."""
-        barcode_decoder = BarcodeDecoder()
+        barcode_decoder = BarcodeDecoder() # debug=True (made for Testing)
         decoded_digits = barcode_decoder.crack_the_code(img)
         decoded_digits_path = os.path.join(self.OUTPUT_PATH, "decoded_digits.txt")
         with open(decoded_digits_path, "a") as file:
@@ -91,12 +91,12 @@ class ImageProcessor:
         flags_text = ", ".join(flags) if flags else "No flags"
         with open(result_file_path, "a") as result_file:
             result_file.write(
-                f"{image_name}: Flags: {flags_text}, Decoded: {', '.join(decoded_digits)}\n"
+                f"{image_name[0:3]}: Flags: {flags_text}, Decoded: {', '.join(decoded_digits)}\n"
             )
         if flags:
-            print(f"{image_name}: {', '.join(flags)}")
+            print(f"{image_name[0:3]}: {', '.join(flags)}")
         else:
-            print(f"{image_name}: No flags")
+            print(f"{image_name[0:3]}: No flags")
 
     def process_image(self, image_path):
         """Process a single image.(made for the GUI)"""
