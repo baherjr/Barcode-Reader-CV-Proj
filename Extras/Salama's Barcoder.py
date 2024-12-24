@@ -21,7 +21,7 @@ code11_widths = {
 }
 
 # Load the image as a grayscale array
-your_cropped_image_path = r'processed_barcodes/06 - meen fata7 el nour 333eenaaayy.jpg'
+your_cropped_image_path = r'../processed_barcodes/06 - meen fata7 el nour 333eenaaayy.jpg'
 your_cropped_image = cv2.imread(your_cropped_image_path, cv2.IMREAD_GRAYSCALE)
 
 # Ensure the image was loaded successfully
