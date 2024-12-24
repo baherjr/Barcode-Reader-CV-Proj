@@ -48,7 +48,6 @@ class ImageFrequencyTransformer:
         while minimizing distortions from intermediate intensity values that can occur at boundaries.
         """
         normalized_image = cv2.normalize(filtered_image, None, 0, 255, cv2.NORM_MINMAX)
-        optimal_threshold = ImageFrequencyTransformer.empirical_tuning_threshold(normalized_image.astype(np.uint8))
         _, thresholded_image = cv2.threshold(normalized_image.astype(np.uint8), thresh=105, maxval=255, type=cv2.THRESH_BINARY)
         return thresholded_image
 
