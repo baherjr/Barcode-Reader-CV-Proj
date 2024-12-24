@@ -91,12 +91,12 @@ class ImageProcessor:
         flags_text = ", ".join(flags) if flags else "No flags"
         with open(result_file_path, "a") as result_file:
             result_file.write(
-                f"{image_name[0:3]}: Flags: {flags_text}, Decoded: {', '.join(decoded_digits)}\n"
+                f"{image_name}: Flags: {flags_text}, Decoded: {', '.join(decoded_digits)}\n"
             )
         if flags:
-            print(f"{image_name[0:3]}: {', '.join(flags)}")
+            print(f"{image_name}: {', '.join(flags)}")
         else:
-            print(f"{image_name[0:3]}: No flags")
+            print(f"{image_name}: No flags")
 
     def process_image(self, image_path):
         """Process a single image.(made for the GUI)"""
