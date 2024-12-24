@@ -139,24 +139,23 @@ class AnalyzeImage:
         return abs(rotation_angle) != rotation_threshold
 
     @staticmethod
-    def detect_periodic(img, cutoff=5, factor=50):
-        float_img = np.float32(img)
-        fft_img = np.fft.fft2(float_img)
-        fft_centered = np.fft.fftshift(fft_img)
+    def detect_periodic(image, min_frequency=5, sensitivity_factor=50):
+        float_image = np.float32(image)
+        frequency_spectrum = np.fft.fft2(float_image)
+        centered_spectrum = np.fft.fftshift(frequency_spectrum)
+        high_freq_spectrum = AnalyzeImage.apply_high_pass_filter(centered_spectrum, min_frequency)
+        frequency_magnitude = np.abs(high_freq_spectrum)
+        normalized_magnitude = cv2.normalize(frequency_magnitude, None, 0, 255, cv2.NORM_MINMAX)
+        magnitude_std = np.std(normalized_magnitude)
+        if magnitude_std == 0:
+            periodicity_score = 0
+        else:
+            magnitude_peak = np.max(normalized_magnitude)
+            magnitude_mean = np.mean(normalized_magnitude)
+            periodicity_score = (magnitude_peak - magnitude_mean) / magnitude_std
 
-        filtered_fft = AnalyzeImage.apply_high_pass_filter(fft_centered, cutoff)
-
-        magnitude = np.abs(filtered_fft)
-        norm_magnitude = cv2.normalize(magnitude, None, 0, 255, cv2.NORM_MINMAX)
-
-        peak = np.max(norm_magnitude)
-        mean = np.mean(norm_magnitude)
-        std = np.std(norm_magnitude)
-
-        score = (peak - mean) / std if std != 0 else 0
-        threshold = factor * std
-
-        return score > threshold
+        periodicity_threshold = sensitivity_factor * magnitude_std
+        return periodicity_score > periodicity_threshold
 
     @staticmethod
     def sobel_operation(image):
